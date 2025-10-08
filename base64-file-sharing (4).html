@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مشاركة الملفات بتقنية Base64 المضغوطة</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            justify-content: center;
+        }
+
+        .tab-btn {
+            flex: 1;
+            max-width: 200px;
+            padding: 15px 20px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab-btn:hover {
+            background: #f8f9ff;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .decode-section {
+            border: 3px solid #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .decode-section textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1em;
+            font-family: monospace;
+            resize: vertical;
+            margin-top: 20px;
+        }
+
+        .decode-section textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .upload-section {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .upload-section:hover {
+            border-color: #764ba2;
+            background: #f8f9ff;
+        }
+
+        .upload-section.dragover {
+            background: #e8ebff;
+            border-color: #764ba2;
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: transform 0.2s;
+            display: inline-block;
+            margin: 10px 5px;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .result-section {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .file-info {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .file-info p {
+            margin: 10px 0;
+            color: #333;
+        }
+
+        .file-info strong {
+            color: #667eea;
+        }
+
+        .compression-stats {
+            background: #d4edda;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .compression-stats p {
+            margin: 5px 0;
+            color: #155724;
+        }
+
+        .share-link {
+            background: #fff;
+            border: 2px solid #667eea;
+            padding: 15px;
+            border-radius: 10px;
+            word-break: break-all;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 0.9em;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .preview {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .preview img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-size: 0.9em;
+        }
+
+        .share-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px dashed #ddd;
+        }
+
+        .social-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .social-btn {
+            padding: 15px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .social-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .social-btn:active {
+            transform: translateY(-1px);
+        }
+
+        .social-icon {
+            font-size: 1.3em;
+        }
+
+        .whatsapp {
+            background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+        }
+
+        .telegram {
+            background: linear-gradient(135deg, #0088cc 0%, #005580 100%);
+        }
+
+        .facebook {
+            background: linear-gradient(135deg, #1877f2 0%, #0d5dbf 100%);
+        }
+
+        .twitter {
+            background: linear-gradient(135deg, #1DA1F2 0%, #0c85d0 100%);
+        }
+
+        .email {
+            background: linear-gradient(135deg, #ea4335 0%, #c5221f 100%);
+        }
+
+        .native {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        @media (max-width: 600px) {
+            .social-buttons {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #f3f3f3;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📁 مشاركة الملفات المضغوطة</h1>
+        <div class="subtitle">باستخدام تقنية Base64 + GZIP Compression</div>
+        
+        <div class="tab-buttons">
+            <button class="tab-btn active" onclick="switchTab('upload')">📤 رفع ملف</button>
+            <button class="tab-btn" onclick="switchTab('decode')">🔓 فك تشفير رابط</button>
+        </div>
+
+        <div class="upload-section" id="uploadSection">
+            <div class="upload-icon">📤</div>
+            <h2>اسحب الملف هنا أو انقر للاختيار</h2>
+            <p>سيتم ضغط الملف تلقائياً لتقليل حجم الرابط</p>
+            <input type="file" id="fileInput">
+        </div>
+
+        <div class="decode-section" id="decodeSection" style="display: none;">
+            <div class="upload-icon">🔓</div>
+            <h2>الصق الرابط هنا</h2>
+            <p>سيتم فك تشفير الملف وعرضه</p>
+            <textarea id="linkInput" placeholder="الصق الرابط الكامل هنا..." rows="4"></textarea>
+            <button class="btn" onclick="decodeFromLink()" style="margin-top: 20px;">فك التشفير</button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p id="loadingText">جاري معالجة الملف...</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill">0%</div>
+            </div>
+        </div>
+
+        <div class="result-section" id="resultSection">
+            <div class="file-info" id="fileInfo"></div>
+            
+            <div class="compression-stats" id="compressionStats"></div>
+
+            <div class="warning">
+                💡 تم ضغط الملف باستخدام GZIP لتقليل حجم الرابط بشكل كبير
+            </div>
+
+            <div class="preview" id="preview"></div>
+
+            <h3>رابط المشاركة:</h3>
+            <div class="share-link" id="shareLink"></div>
+
+            <div style="text-align: center;">
+                <button class="btn" onclick="copyLink()">📋 نسخ الرابط</button>
+                <button class="btn" onclick="downloadFile()">💾 تحميل الملف</button>
+                <button class="btn btn-secondary" onclick="reset()">🔄 ملف جديد</button>
+            </div>
+
+            <div class="share-section">
+                <h3 style="text-align: center; color: #667eea; margin: 20px 0;">شارك على:</h3>
+                <div class="social-buttons">
+                    <button class="social-btn whatsapp" onclick="shareToWhatsApp()">
+                        <span class="social-icon">📱</span> واتساب
+                    </button>
+                    <button class="social-btn telegram" onclick="shareToTelegram()">
+                        <span class="social-icon">✈️</span> تيليجرام
+                    </button>
+                    <button class="social-btn facebook" onclick="shareToFacebook()">
+                        <span class="social-icon">📘</span> فيسبوك
+                    </button>
+                    <button class="social-btn twitter" onclick="shareToTwitter()">
+                        <span class="social-icon">🐦</span> تويتر
+                    </button>
+                    <button class="social-btn email" onclick="shareViaEmail()">
+                        <span class="social-icon">📧</span> بريد إلكتروني
+                    </button>
+                    <button class="social-btn native" onclick="shareNative()" id="nativeShareBtn">
+                        <span class="social-icon">🔗</span> مشاركة
+                    </button>
+                </div>
+            </div>
+
+            <div class="success-message" id="successMessage" style="display: none;">
+                ✅ تم نسخ الرابط بنجاح!
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentFileData = null;
+        let currentFileName = '';
+        let currentFileType = '';
+        let currentTab = 'upload';
+
+        const uploadSection = document.getElementById('uploadSection');
+        const decodeSection = document.getElementById('decodeSection');
+        const fileInput = document.getElementById('fileInput');
+        const linkInput = document.getElementById('linkInput');
+        const loading = document.getElementById('loading');
+        const loadingText = document.getElementById('loadingText');
+        const progressFill = document.getElementById('progressFill');
+        const resultSection = document.getElementById('resultSection');
+        const fileInfo = document.getElementById('fileInfo');
+        const compressionStats = document.getElementById('compressionStats');
+        const shareLink = document.getElementById('shareLink');
+        const preview = document.getElementById('preview');
+        const successMessage = document.getElementById('successMessage');
+
+        // Check if file is shared via URL
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const fileData = urlParams.get('d');
+            const fileName = urlParams.get('n');
+            const fileType = urlParams.get('t');
+
+            if (fileData && fileName && fileType) {
+                loadSharedFile(fileData, fileName, fileType);
+            }
+            
+            // Check if native share is available
+            if (!navigator.share) {
+                const nativeBtn = document.getElementById('nativeShareBtn');
+                if (nativeBtn) {
+                    nativeBtn.style.display = 'none';
+                }
+            }
+        });
+
+        uploadSection.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragover');
+        });
+
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        function updateProgress(percent, text) {
+            progressFill.style.width = percent + '%';
+            progressFill.textContent = percent + '%';
+            if (text) loadingText.textContent = text;
+        }
+
+        async function handleFile(file) {
+            loading.style.display = 'block';
+            uploadSection.style.display = 'none';
+            updateProgress(10, 'جاري قراءة الملف...');
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                updateProgress(30, 'جاري ضغط الملف...');
+                
+                const base64Data = e.target.result.split(',')[1];
+                const binaryData = atob(base64Data);
+                const uint8Array = new Uint8Array(binaryData.length);
+                for (let i = 0; i < binaryData.length; i++) {
+                    uint8Array[i] = binaryData.charCodeAt(i);
+                }
+
+                updateProgress(60, 'جاري تطبيق GZIP...');
+                
+                // Compress using pako (gzip)
+                const compressed = pako.gzip(uint8Array, { level: 9 });
+                
+                updateProgress(80, 'جاري التشفير...');
+                
+                // Convert compressed data to base64
+                let binary = '';
+                for (let i = 0; i < compressed.length; i++) {
+                    binary += String.fromCharCode(compressed[i]);
+                }
+                currentFileData = btoa(binary);
+                currentFileName = file.name;
+                currentFileType = file.type;
+
+                updateProgress(100, 'تم الانتهاء!');
+
+                setTimeout(() => {
+                    displayResults(file, uint8Array.length, compressed.length);
+                    loading.style.display = 'none';
+                    resultSection.style.display = 'block';
+                }, 500);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function displayResults(file, originalSize, compressedSize) {
+            const sizeKB = (file.size / 1024).toFixed(2);
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            const sizeDisplay = file.size > 1024 * 1024 ? `${sizeMB} ميجابايت` : `${sizeKB} كيلوبايت`;
+
+            const compressedKB = (compressedSize / 1024).toFixed(2);
+            const compressionRatio = ((1 - compressedSize / originalSize) * 100).toFixed(1);
+
+            fileInfo.innerHTML = `
+                <p><strong>اسم الملف:</strong> ${file.name}</p>
+                <p><strong>نوع الملف:</strong> ${file.type || 'غير معروف'}</p>
+                <p><strong>الحجم الأصلي:</strong> ${sizeDisplay}</p>
+            `;
+
+            compressionStats.innerHTML = `
+                <p><strong>📊 إحصائيات الضغط:</strong></p>
+                <p>🔹 الحجم قبل الضغط: ${(originalSize / 1024).toFixed(2)} كيلوبايت</p>
+                <p>🔹 الحجم بعد الضغط: ${compressedKB} كيلوبايت</p>
+                <p>🔹 نسبة الضغط: ${compressionRatio}% 🎉</p>
+            `;
+
+            const url = generateShareLink();
+            shareLink.textContent = url;
+
+            preview.innerHTML = '';
+            if (file.type.startsWith('image/')) {
+                loadingText.textContent = 'جاري تحميل الصورة...';
+                loading.style.display = 'block';
+                decompressAndDisplay(currentFileData, file.type);
+            }
+        }
+
+        function generateShareLink() {
+            const baseUrl = window.location.origin + window.location.pathname;
+            const params = new URLSearchParams({
+                d: currentFileData,
+                n: encodeURIComponent(currentFileName),
+                t: encodeURIComponent(currentFileType)
+            });
+            return `${baseUrl}?${params.toString()}`;
+        }
+
+        async function loadSharedFile(compressedData, fileName, fileType) {
+            try {
+                currentFileData = compressedData;
+                currentFileName = decodeURIComponent(fileName);
+                currentFileType = decodeURIComponent(fileType);
+
+                uploadSection.style.display = 'none';
+                loading.style.display = 'block';
+                updateProgress(30, 'جاري تحميل الملف...');
+
+                fileInfo.innerHTML = `
+                    <p><strong>اسم الملف:</strong> ${currentFileName}</p>
+                    <p><strong>نوع الملف:</strong> ${currentFileType || 'غير معروف'}</p>
+                `;
+
+                const url = window.location.href;
+                shareLink.textContent = url;
+
+                compressionStats.innerHTML = `
+                    <p><strong>📊 الملف مضغوط باستخدام GZIP</strong></p>
+                    <p>سيتم فك الضغط تلقائياً عند التحميل</p>
+                `;
+
+                updateProgress(70, 'جاري فك الضغط...');
+
+                // Decompress the data
+                const binaryString = atob(compressedData);
+                const uint8Array = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    uint8Array[i] = binaryString.charCodeAt(i);
+                }
+
+                const decompressed = pako.ungzip(uint8Array);
+                
+                updateProgress(100, 'تم التحميل بنجاح!');
+
+                setTimeout(() => {
+                    loading.style.display = 'none';
+                    resultSection.style.display = 'block';
+
+                    preview.innerHTML = '';
+                    if (currentFileType.startsWith('image/')) {
+                        let binary = '';
+                        for (let i = 0; i < decompressed.length; i++) {
+                            binary += String.fromCharCode(decompressed[i]);
+                        }
+                        const base64 = btoa(binary);
+
+                        const img = document.createElement('img');
+                        img.src = `data:${currentFileType};base64,${base64}`;
+                        img.onerror = () => {
+                            preview.innerHTML = '<p style="color: red;">فشل تحميل الصورة</p>';
+                        };
+                        preview.appendChild(img);
+                    }
+                }, 500);
+            } catch (error) {
+                console.error('Error loading shared file:', error);
+                loading.style.display = 'none';
+                uploadSection.style.display = 'block';
+                alert('حدث خطأ في تحميل الملف. الرجاء التأكد من صحة الرابط.');
+            }
+        }
+
+        function decompressAndDisplay(compressedData, fileType) {
+            try {
+                const binaryString = atob(compressedData);
+                const uint8Array = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    uint8Array[i] = binaryString.charCodeAt(i);
+                }
+
+                const decompressed = pako.ungzip(uint8Array);
+                
+                let binary = '';
+                for (let i = 0; i < decompressed.length; i++) {
+                    binary += String.fromCharCode(decompressed[i]);
+                }
+                const base64 = btoa(binary);
+
+                const img = document.createElement('img');
+                img.src = `data:${fileType};base64,${base64}`;
+                preview.appendChild(img);
+                loading.style.display = 'none';
+            } catch (error) {
+                console.error('Error decompressing:', error);
+                preview.innerHTML = '<p>حدث خطأ في فك ضغط الصورة</p>';
+                loading.style.display = 'none';
+            }
+        }
+
+        function copyLink() {
+            const link = shareLink.textContent;
+            navigator.clipboard.writeText(link).then(() => {
+                successMessage.style.display = 'block';
+                setTimeout(() => {
+                    successMessage.style.display = 'none';
+                }, 3000);
+            });
+        }
+
+        function downloadFile() {
+            try {
+                updateProgress(0, 'جاري التحميل...');
+                loading.style.display = 'block';
+                
+                const binaryString = atob(currentFileData);
+                const uint8Array = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    uint8Array[i] = binaryString.charCodeAt(i);
+                }
+
+                updateProgress(50, 'جاري فك الضغط...');
+                const decompressed = pako.ungzip(uint8Array);
+                
+                updateProgress(80, 'جاري حفظ الملف...');
+                const blob = new Blob([decompressed], { type: currentFileType });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = currentFileName;
+                link.click();
+                URL.revokeObjectURL(url);
+                
+                updateProgress(100, 'تم التحميل بنجاح!');
+                setTimeout(() => {
+                    loading.style.display = 'none';
+                }, 1000);
+            } catch (error) {
+                console.error('Error downloading:', error);
+                loading.style.display = 'none';
+                alert('حدث خطأ في تحميل الملف. الرجاء المحاولة مرة أخرى.');
+            }
+        }
+
+        function reset() {
+            if (currentTab === 'upload') {
+                uploadSection.style.display = 'block';
+                decodeSection.style.display = 'none';
+            } else {
+                uploadSection.style.display = 'none';
+                decodeSection.style.display = 'block';
+            }
+            resultSection.style.display = 'none';
+            loading.style.display = 'none';
+            fileInput.value = '';
+            linkInput.value = '';
+            currentFileData = null;
+            currentFileName = '';
+            currentFileType = '';
+            updateProgress(0, 'جاري معالجة الملف...');
+            window.history.pushState({}, '', window.location.pathname);
+        }
+
+        // Social sharing functions
+        function getShareLink() {
+            return shareLink.textContent;
+        }
+
+        function getShareMessage() {
+            return `تم مشاركة ملف: ${currentFileName}\nحمل الملف من هنا:`;
+        }
+
+        function shareToWhatsApp() {
+            const url = encodeURIComponent(getShareLink());
+            const text = encodeURIComponent(getShareMessage());
+            window.open(`https://wa.me/?text=${text}%20${url}`, '_blank');
+        }
+
+        function shareToTelegram() {
+            const url = encodeURIComponent(getShareLink());
+            const text = encodeURIComponent(getShareMessage());
+            window.open(`https://t.me/share/url?url=${url}&text=${text}`, '_blank');
+        }
+
+        function shareToFacebook() {
+            const url = encodeURIComponent(getShareLink());
+            window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
+        }
+
+        function shareToTwitter() {
+            const url = encodeURIComponent(getShareLink());
+            const text = encodeURIComponent(`📁 ${currentFileName}\n\nحمل الملف من هنا:`);
+            window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank');
+        }
+
+        function shareViaEmail() {
+            const url = encodeURIComponent(getShareLink());
+            const subject = encodeURIComponent(`مشاركة ملف: ${currentFileName}`);
+            const body = encodeURIComponent(`مرحباً،\n\nأرسل لك ملف: ${currentFileName}\n\nيمكنك تحميله من الرابط التالي:\n${getShareLink()}\n\nمع تحياتي`);
+            window.location.href = `mailto:?subject=${subject}&body=${body}`;
+        }
+
+        async function shareNative() {
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: `ملف: ${currentFileName}`,
+                        text: getShareMessage(),
+                        url: getShareLink()
+                    });
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        console.error('Error sharing:', error);
+                        copyLink();
+                    }
+                }
+            } else {
+                copyLink();
+            }
+        }
+
+        // Check if native share is available
+        window.addEventListener('load', () => {
+            if (!navigator.share) {
+                const nativeBtn = document.getElementById('nativeShareBtn');
+                if (nativeBtn) {
+                    nativeBtn.style.display = 'none';
+                }
+            }
+        });
+
+        function switchTab(tab) {
+            currentTab = tab;
+            const tabs = document.querySelectorAll('.tab-btn');
+            tabs.forEach(t => t.classList.remove('active'));
+            
+            if (tab === 'upload') {
+                event.target.classList.add('active');
+                uploadSection.style.display = 'block';
+                decodeSection.style.display = 'none';
+            } else {
+                event.target.classList.add('active');
+                uploadSection.style.display = 'none';
+                decodeSection.style.display = 'block';
+            }
+            
+            resultSection.style.display = 'none';
+        }
+
+        function decodeFromLink() {
+            const link = linkInput.value.trim();
+            
+            if (!link) {
+                alert('الرجاء إدخال رابط أولاً');
+                return;
+            }
+
+            try {
+                const url = new URL(link);
+                const params = new URLSearchParams(url.search);
+                const fileData = params.get('d');
+                const fileName = params.get('n');
+                const fileType = params.get('t');
+
+                if (!fileData || !fileName || !fileType) {
+                    alert('الرابط غير صحيح أو لا يحتوي على ملف');
+                    return;
+                }
+
+                decodeSection.style.display = 'none';
+                loadSharedFile(fileData, fileName, fileType);
+            } catch (error) {
+                console.error('Error parsing link:', error);
+                alert('الرابط غير صحيح. الرجاء التأكد من نسخ الرابط كاملاً');
+            }
+        }
+    </script>
+</body>
+</html>
